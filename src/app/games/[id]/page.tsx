@@ -297,6 +297,11 @@ export default function GameDetailPage() {
             >
               {game.sport}
             </span>
+            {game.recurrence && game.recurrence.frequency !== 'none' && (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                {game.recurrence.frequency === 'weekly' ? 'Weekly' : 'Biweekly'}
+              </span>
+            )}
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Clock, Users, Trophy, MapPin } from 'lucide-react';
-import { Sport, SkillLevel, CreateGameInput, GameLocation } from '@/lib/types';
+import { Sport, SkillLevel, CreateGameInput, GameLocation, RecurrenceFrequency } from '@/lib/types';
 import { createGame } from '@/lib/firebase/firestore';
 import { useAuthContext } from '@/components/auth/AuthProvider';
 
@@ -26,6 +26,7 @@ export default function CreateGameForm({ onLocationSelect, selectedLocation }: C
   const [minElo, setMinElo] = useState(1200);
   const [locationName, setLocationName] = useState('');
   const [locationAddress, setLocationAddress] = useState('');
+  const [recurrence, setRecurrence] = useState<RecurrenceFrequency>('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -66,6 +67,10 @@ export default function CreateGameForm({ onLocationSelect, selectedLocation }: C
         maxPlayers,
         skillLevel,
         minElo: useEloRequirement ? minElo : undefined,
+        recurrence: recurrence !== 'none' ? {
+          frequency: recurrence,
+          dayOfWeek: startTime.getDay(),
+        } : undefined,
       };
 
       const gameId = await createGame(user.uid, gameInput);
@@ -220,6 +225,24 @@ export default function CreateGameForm({ onLocationSelect, selectedLocation }: C
         </div>
       </div>
 
+      {/* Recurrence */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Calendar className="inline h-4 w-4 mr-1" />
+          Repeat
+        </label>
+        <div className="flex gap-3">
+          <RecurrenceButton label="One-time" value="none" selected={recurrence === 'none'} onClick={() => setRecurrence('none')} />
+          <RecurrenceButton label="Weekly" value="weekly" selected={recurrence === 'weekly'} onClick={() => setRecurrence('weekly')} />
+          <RecurrenceButton label="Biweekly" value="biweekly" selected={recurrence === 'biweekly'} onClick={() => setRecurrence('biweekly')} />
+        </div>
+        {recurrence !== 'none' && (
+          <p className="text-xs text-gray-500 mt-2">
+            A new game will be automatically created {recurrence === 'weekly' ? 'every week' : 'every 2 weeks'} after this game completes.
+          </p>
+        )}
+      </div>
+
       {/* Elo Requirement */}
       <div>
         <label className="flex items-center gap-2 cursor-pointer">
@@ -313,6 +336,32 @@ function SkillButton({
       }`}
     >
       {level}
+    </button>
+  );
+}
+
+function RecurrenceButton({
+  label,
+  value,
+  selected,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 py-2 px-3 rounded-lg border-2 transition text-sm ${
+        selected
+          ? 'border-green-500 bg-green-50 text-green-700'
+          : 'border-gray-200 hover:border-gray-300'
+      }`}
+    >
+      {label}
     </button>
   );
 }

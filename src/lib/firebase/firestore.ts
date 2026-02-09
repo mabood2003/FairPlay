@@ -17,9 +17,10 @@ import {
   CollectionReference,
   runTransaction,
   DocumentData,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from './config';
-import { Game, CreateGameInput, User, Sport, SkillLevel, GameStatus } from '../types';
+import { Game, CreateGameInput, User, Sport, SkillLevel, GameStatus, FriendConnection, Recurrence } from '../types';
 
 // --- Runtime validation helpers ---
 
@@ -79,7 +80,7 @@ function ensureDb() {
 
 export async function createGame(hostId: string, input: CreateGameInput): Promise<string> {
   const gamesCollection = getGamesCollection();
-  const gameData = {
+  const gameData: Record<string, unknown> = {
     hostId,
     sport: input.sport,
     location: input.location,
@@ -94,9 +95,51 @@ export async function createGame(hostId: string, input: CreateGameInput): Promis
     createdAt: serverTimestamp(),
   };
 
+  if (input.recurrence && input.recurrence.frequency !== 'none') {
+    gameData.recurrence = input.recurrence;
+  }
+
   const docRef = await addDoc(gamesCollection, gameData);
   await updateDoc(docRef, { gameId: docRef.id });
   return docRef.id;
+}
+
+/**
+ * Create the next occurrence of a recurring game.
+ * Called after a recurring game completes or is cancelled.
+ */
+export async function createNextRecurringGame(completedGame: Game): Promise<string | null> {
+  if (!completedGame.recurrence || completedGame.recurrence.frequency === 'none') {
+    return null;
+  }
+
+  const weeksToAdd = completedGame.recurrence.frequency === 'weekly' ? 1 : 2;
+  const currentStart = completedGame.startTime.toDate();
+  const nextStart = new Date(currentStart);
+  nextStart.setDate(nextStart.getDate() + weeksToAdd * 7);
+
+  // Don't create games more than 30 days in the future
+  const maxFutureDate = new Date();
+  maxFutureDate.setDate(maxFutureDate.getDate() + 30);
+  if (nextStart > maxFutureDate) {
+    return null;
+  }
+
+  const input: CreateGameInput = {
+    sport: completedGame.sport,
+    location: completedGame.location,
+    startTime: nextStart,
+    duration: completedGame.duration,
+    maxPlayers: completedGame.maxPlayers,
+    skillLevel: completedGame.skillLevel,
+    minElo: completedGame.minElo,
+    recurrence: {
+      ...completedGame.recurrence,
+      parentGameId: completedGame.recurrence.parentGameId || completedGame.gameId,
+    },
+  };
+
+  return createGame(completedGame.hostId, input);
 }
 
 export async function getGame(gameId: string): Promise<Game | null> {
@@ -440,4 +483,78 @@ export function subscribeToUser(
       callback(null);
     }
   });
+}
+
+// --- Friend System ---
+
+function getFriendsCollection(): CollectionReference {
+  if (!db) throw new Error('Firebase not initialized');
+  return collection(db, 'friends');
+}
+
+export async function followUser(followerId: string, followingId: string): Promise<void> {
+  if (followerId === followingId) throw new Error('Cannot follow yourself');
+  const friendsCol = getFriendsCollection();
+
+  // Check if already following
+  const existing = await getDocs(
+    query(friendsCol, where('followerId', '==', followerId), where('followingId', '==', followingId))
+  );
+  if (!existing.empty) throw new Error('Already following this user');
+
+  await addDoc(friendsCol, {
+    followerId,
+    followingId,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function unfollowUser(followerId: string, followingId: string): Promise<void> {
+  const friendsCol = getFriendsCollection();
+  const database = ensureDb();
+  const snapshot = await getDocs(
+    query(friendsCol, where('followerId', '==', followerId), where('followingId', '==', followingId))
+  );
+  for (const d of snapshot.docs) {
+    await deleteDoc(doc(database, 'friends', d.id));
+  }
+}
+
+export async function getFollowing(userId: string): Promise<string[]> {
+  const friendsCol = getFriendsCollection();
+  const snapshot = await getDocs(
+    query(friendsCol, where('followerId', '==', userId))
+  );
+  return snapshot.docs.map((d) => d.data().followingId as string);
+}
+
+export async function getFollowers(userId: string): Promise<string[]> {
+  const friendsCol = getFriendsCollection();
+  const snapshot = await getDocs(
+    query(friendsCol, where('followingId', '==', userId))
+  );
+  return snapshot.docs.map((d) => d.data().followerId as string);
+}
+
+export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {
+  const friendsCol = getFriendsCollection();
+  const snapshot = await getDocs(
+    query(friendsCol, where('followerId', '==', followerId), where('followingId', '==', followingId))
+  );
+  return !snapshot.empty;
+}
+
+// --- Player Stats ---
+
+export async function getUserCompletedGames(userId: string): Promise<Game[]> {
+  const gamesCollection = getGamesCollection();
+  const snapshot = await getDocs(
+    query(
+      gamesCollection,
+      where('status', '==', 'completed'),
+      where('players', 'array-contains', userId),
+      orderBy('startTime', 'desc')
+    )
+  );
+  return snapshot.docs.map((d) => validateGameData(d.data(), d.id));
 }

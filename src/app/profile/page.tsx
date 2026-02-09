@@ -3,10 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Trophy, ArrowLeft, LogOut, Settings } from 'lucide-react';
+import { Trophy, ArrowLeft, LogOut, BarChart3 } from 'lucide-react';
 import { useAuthContext } from '@/components/auth/AuthProvider';
 import { signOut } from '@/lib/firebase/auth';
 import ProfileCard from '@/components/profile/ProfileCard';
+import FriendsList from '@/components/profile/FriendsList';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -75,12 +76,19 @@ export default function ProfilePage() {
         <ProfileCard user={profile} isOwnProfile />
 
         {/* Quick Actions */}
-        <div className="mt-6 grid grid-cols-2 gap-4">
+        <div className="mt-6 grid grid-cols-3 gap-4">
           <Link
             href="/games"
             className="flex items-center justify-center gap-2 p-4 bg-white rounded-xl shadow-md hover:shadow-lg transition text-gray-700"
           >
             Find Games
+          </Link>
+          <Link
+            href="/profile/stats"
+            className="flex items-center justify-center gap-2 p-4 bg-white rounded-xl shadow-md hover:shadow-lg transition text-gray-700"
+          >
+            <BarChart3 className="h-5 w-5" />
+            My Stats
           </Link>
           <Link
             href="/games/create"
@@ -89,6 +97,13 @@ export default function ProfilePage() {
             Host a Game
           </Link>
         </div>
+
+        {/* Friends */}
+        {user && (
+          <div className="mt-6">
+            <FriendsList userId={user.uid} />
+          </div>
+        )}
       </div>
     </main>
   );

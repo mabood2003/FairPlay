@@ -53,15 +53,22 @@ export default function GameCard({ game }: GameCardProps) {
         </div>
 
         <div className="flex items-center justify-between">
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              game.skillLevel === 'competitive'
-                ? 'bg-purple-100 text-purple-700'
-                : 'bg-blue-100 text-blue-700'
-            }`}
-          >
-            {game.skillLevel}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                game.skillLevel === 'competitive'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-blue-100 text-blue-700'
+              }`}
+            >
+              {game.skillLevel}
+            </span>
+            {game.recurrence && game.recurrence.frequency !== 'none' && (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                {game.recurrence.frequency === 'weekly' ? 'Weekly' : 'Biweekly'}
+              </span>
+            )}
+          </div>
           <span
             className={`px-3 py-1 rounded-full text-xs font-medium ${
               isFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
