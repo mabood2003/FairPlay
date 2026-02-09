@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Check, X, Users } from 'lucide-react';
-import { Game, User, Sport } from '@/lib/types';
-import { submitGameResults, confirmGameResults, completeGame, updateUserElo, incrementUserGames } from '@/lib/firebase/firestore';
+import { Game, Sport } from '@/lib/types';
+import { submitGameResults, confirmGameResults, processEloUpdatesTransactional } from '@/lib/firebase/firestore';
 import { processGameResults } from '@/lib/elo';
 import { getUserProfile } from '@/lib/firebase/auth';
 
@@ -96,9 +96,16 @@ export default function ScoreSubmission({ game, currentUserId, isHost }: ScoreSu
         const confirmations = results.confirmedBy.length + 1; // +1 for current confirmation
 
         if (confirmations > totalPlayers / 2) {
-          // Majority confirmed, process Elo updates
-          await processEloUpdates(game.gameId, results.team1, results.team2, results.team1Score, results.team2Score, game.sport);
-          await completeGame(game.gameId);
+          // Majority confirmed — process Elo updates atomically via transaction
+          await processEloUpdatesTransactional(
+            game.gameId,
+            results.team1,
+            results.team2,
+            results.team1Score,
+            results.team2Score,
+            game.sport,
+            processGameResults
+          );
         }
       }
     } catch (err) {
@@ -287,38 +294,3 @@ export default function ScoreSubmission({ game, currentUserId, isHost }: ScoreSu
   );
 }
 
-async function processEloUpdates(
-  gameId: string,
-  team1: string[],
-  team2: string[],
-  team1Score: number,
-  team2Score: number,
-  sport: Sport
-) {
-  // Get current Elo ratings for all players
-  const team1Elos = new Map<string, number>();
-  const team2Elos = new Map<string, number>();
-
-  for (const playerId of team1) {
-    const profile = await getUserProfile(playerId);
-    if (profile) {
-      team1Elos.set(playerId, profile.sports[sport]);
-    }
-  }
-
-  for (const playerId of team2) {
-    const profile = await getUserProfile(playerId);
-    if (profile) {
-      team2Elos.set(playerId, profile.sports[sport]);
-    }
-  }
-
-  // Calculate new ratings
-  const newRatings = processGameResults(team1Elos, team2Elos, team1Score, team2Score);
-
-  // Update all players
-  for (const [playerId, newElo] of newRatings) {
-    await updateUserElo(playerId, sport, newElo);
-    await incrementUserGames(playerId, true);
-  }
-}
