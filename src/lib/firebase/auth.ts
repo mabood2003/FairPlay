@@ -76,7 +76,24 @@ export async function getUserProfile(uid: string): Promise<User | null> {
   const userSnap = await getDoc(userRef);
 
   if (userSnap.exists()) {
-    return userSnap.data() as User;
+    const data = userSnap.data();
+    // Runtime validation of user data from Firestore
+    if (
+      typeof data.uid !== 'string' ||
+      typeof data.displayName !== 'string' ||
+      typeof data.email !== 'string' ||
+      typeof data.sports !== 'object' ||
+      data.sports === null ||
+      typeof data.sports.basketball !== 'number' ||
+      typeof data.sports.soccer !== 'number' ||
+      typeof data.reliabilityScore !== 'number' ||
+      typeof data.gamesPlayed !== 'number' ||
+      typeof data.gamesAttended !== 'number'
+    ) {
+      console.error('Invalid user data from Firestore for uid:', uid);
+      return null;
+    }
+    return data as unknown as User;
   }
   return null;
 }

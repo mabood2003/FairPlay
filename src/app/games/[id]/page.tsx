@@ -38,6 +38,7 @@ import {
 } from '@/lib/geolocation';
 import { getEloTier, getEloTierColor } from '@/lib/elo';
 import ScoreSubmission from '@/components/games/ScoreSubmission';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { User } from '@/lib/types';
 
 export default function GameDetailPage() {
@@ -296,6 +297,11 @@ export default function GameDetailPage() {
             >
               {game.sport}
             </span>
+            {game.recurrence && game.recurrence.frequency !== 'none' && (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                {game.recurrence.frequency === 'weekly' ? 'Weekly' : 'Biweekly'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -441,7 +447,9 @@ export default function GameDetailPage() {
 
             {/* Score Submission for in_progress or pending_results */}
             {(game.status === 'in_progress' || game.status === 'pending_results') && user && (
-              <ScoreSubmission game={game} currentUserId={user.uid} isHost={isHost} />
+              <ErrorBoundary>
+                <ScoreSubmission game={game} currentUserId={user.uid} isHost={isHost} />
+              </ErrorBoundary>
             )}
 
             {/* Completed Game Results */}

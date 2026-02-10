@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 export type Sport = 'basketball' | 'soccer';
 export type SkillLevel = 'casual' | 'competitive';
 export type GameStatus = 'open' | 'in_progress' | 'pending_results' | 'completed' | 'cancelled';
+export type RecurrenceFrequency = 'none' | 'weekly' | 'biweekly';
 
 export interface UserSports {
   basketball: number;
@@ -36,6 +37,12 @@ export interface GameResults {
   confirmedBy: string[];
 }
 
+export interface Recurrence {
+  frequency: RecurrenceFrequency;
+  dayOfWeek: number; // 0=Sunday, 6=Saturday
+  parentGameId?: string; // links recurring instances to the original
+}
+
 export interface Game {
   gameId: string;
   hostId: string;
@@ -50,6 +57,7 @@ export interface Game {
   checkedIn: string[];
   status: GameStatus;
   results?: GameResults;
+  recurrence?: Recurrence;
   createdAt: Timestamp;
 }
 
@@ -62,6 +70,7 @@ export interface CreateGameInput {
   maxPlayers: number;
   skillLevel: SkillLevel;
   minElo?: number;
+  recurrence?: Recurrence;
 }
 
 export interface SubmitScoreInput {
@@ -69,6 +78,40 @@ export interface SubmitScoreInput {
   team2: string[];
   team1Score: number;
   team2Score: number;
+}
+
+// Friend system
+export interface FriendConnection {
+  id: string;
+  followerId: string;
+  followingId: string;
+  createdAt: Timestamp;
+}
+
+// Player stats
+export interface PlayerGameRecord {
+  gameId: string;
+  sport: Sport;
+  date: Date;
+  eloChange: number;
+  eloAfter: number;
+  won: boolean;
+  drew: boolean;
+  teammates: string[];
+  opponents: string[];
+  locationName: string;
+}
+
+export interface PlayerStats {
+  totalGames: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+  basketballGames: number;
+  soccerGames: number;
+  favoriteLocation: string;
+  gameHistory: PlayerGameRecord[];
 }
 
 // Default values for new users

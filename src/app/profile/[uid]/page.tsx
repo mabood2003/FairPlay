@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Trophy, ArrowLeft } from 'lucide-react';
 import { getUserProfile } from '@/lib/firebase/auth';
 import ProfileCard from '@/components/profile/ProfileCard';
+import FriendButton from '@/components/profile/FriendButton';
 import { User } from '@/lib/types';
 
 export default function UserProfilePage() {
@@ -103,7 +104,10 @@ export default function UserProfilePage() {
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Player Profile</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Player Profile</h1>
+          <FriendButton targetUserId={uid} />
+        </div>
         <ProfileCard user={profile} />
       </div>
     </main>
